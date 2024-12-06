@@ -24,7 +24,7 @@
         :width="calculateIconSize"
         :height="calculateIconSize"
         src="@/assets/marker-icon.png"
-        @click="onClick"
+        @click="$refs.chatBox.runAI([item + 132.87291795137622 + offset, 35.517821791218614])"
         class="pinpoint"
       />
     </ol-overlay>
@@ -36,7 +36,7 @@
     <li>zoom : {{ currentZoom }}</li>
     <li>rotation : {{ currentRotation }}</li>
     <br />
-    <ChatBox />
+    <ChatBox ref="chatBox" />
   </ul>
 </template>
 
@@ -55,10 +55,9 @@ const currentRotation = ref(rotation.value)
 const currentResolution = ref(0)
 const offset = ref(0)
 const list = ref([2, 1, 3, 5, -1])
+const chatBox = ref(null)
 
 const calculateIconSize = computed(() => {
-  // Base size of 50px, scaled by zoom level
-  // Adjust the multiplier (0.5) to control sensitivity
   return Math.max(20, Math.min(100, 50 * (currentZoom.value / 6.38)))
 })
 function resolutionChanged(event) {
@@ -70,9 +69,6 @@ function centerChanged(event) {
 }
 function rotationChanged(event) {
   currentRotation.value = event.target.getRotation()
-}
-function onClick() {
-  console.log('HEHE')
 }
 </script>
 

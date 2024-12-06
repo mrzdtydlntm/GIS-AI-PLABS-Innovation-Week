@@ -10,7 +10,7 @@
           'bot-message': message.sender === 'bot',
         }"
       >
-        <p>{{ message.text }}</p>
+        <div v-html="parseMarkdown(message.text)"></div>
       </div>
       <div v-if="isBotTyping" class="chat-message bot-message typing-indicator">
         <p>Bot is typing...</p>
@@ -21,98 +21,112 @@
         v-model="newMessage"
         @keyup.enter="runAI"
         type="text"
+        :disabled="isChatDisabled"
         placeholder="Type your message..."
       />
-      <button @click="runAI">Send</button>
+      <button @click="runAI" :disabled="isChatDisabled">Send</button>
     </div>
   </div>
 </template>
 
-<script>
+<script setup>
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { ref, nextTick } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
+import { marked } from 'marked'
 
-export default {
-  data() {
-    return {
-      messages: [{ text: 'Hello! How can I help you today?', sender: 'bot' }],
-      newMessage: '',
-      isBotTyping: false,
-    }
-  },
-  setup() {
-    const messagesContainer = ref(null)
+const messages = reactive([
+  { text: 'Please click the marker in maps to get the data', sender: 'bot' },
+])
+const newMessage = ref('')
+const isBotTyping = ref(false)
+const messagesContainer = ref(null)
+const isChatDisabled = ref(true)
 
-    const scrollToBottom = () => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    }
-
-    return {
-      messagesContainer,
-      scrollToBottom,
-    }
-  },
-  methods: {
-    runAI() {
-      try {
-        if (this.newMessage.trim()) {
-          this.isBotTyping = true
-          const msg = this.newMessage
-          // Add user message to messages
-          this.messages.push({ text: this.newMessage.trim(), sender: 'user' })
-
-          // Simulate bot response after 1 second
-          setTimeout(async () => {
-            const apiKey = import.meta.env.VITE_GOOGLE_API_KEY
-            if (!apiKey) {
-              throw new Error('API Key not found in environment variables.')
-            }
-
-            const genAI = new GoogleGenerativeAI(apiKey)
-
-            const model = genAI.getGenerativeModel({
-              model: 'gemini-1.5-pro',
-            })
-
-            const generationConfig = {
-              temperature: 1,
-              topP: 0.95,
-              topK: 40,
-              maxOutputTokens: 8192,
-              responseMimeType: 'text/plain',
-            }
-
-            const chatSession = await model.generateContent(msg, generationConfig)
-
-            const response = chatSession.response.text()
-
-            this.messages.push({ text: response.trim(), sender: 'bot' })
-
-            await nextTick()
-            this.scrollToBottom()
-            this.isBotTyping = false
-          }, 1000)
-
-          // Clear the input field
-          this.newMessage = ''
-        }
-      } catch (error) {
-        console.error(error.message)
-      }
-    },
-  },
+function scrollToBottom() {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
 }
+
+function parseMarkdown(text) {
+  return marked(text)
+}
+
+function runAI(data) {
+  try {
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY
+    if (!apiKey) {
+      throw new Error('API Key not found in environment variables.')
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey)
+
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+    })
+
+    const generationConfig = {
+      temperature: 1,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: 'text/plain',
+    }
+
+    if (newMessage.value.trim()) {
+      isBotTyping.value = true
+      let msg = newMessage.value
+
+      messages.push({ text: newMessage.value.trim(), sender: 'user' })
+
+      setTimeout(async () => {
+        const chatSession = await model.generateContent(msg, generationConfig)
+
+        const response = chatSession.response.text()
+
+        messages.push({ text: response.trim(), sender: 'bot' })
+
+        await nextTick()
+        scrollToBottom()
+        isBotTyping.value = false
+        isChatDisabled.value = false
+      }, 1000)
+      newMessage.value = ''
+      nextTick()
+      scrollToBottom()
+    } else if (data && data.length === 2) {
+      isBotTyping.value = true
+      const msg = `Please search this longitude ${data[0]} and latitude ${data[1]} country info and show me the result please and check the disease that happen on this area`
+
+      setTimeout(async () => {
+        const chatSession = await model.generateContent(msg, generationConfig)
+
+        const response = chatSession.response.text()
+
+        messages.push({ text: response.trim(), sender: 'bot' })
+
+        await nextTick()
+        scrollToBottom()
+        isBotTyping.value = false
+      }, 1000)
+    }
+  } catch (error) {
+    console.error(error.message)
+  }
+}
+
+// Expose methods for parent access
+defineExpose({
+  runAI,
+})
 </script>
 
 <style scoped>
 .chat-box {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: 400px;
-  height: 500px;
+  width: 600px;
+  height: 700px;
   border: 1px solid #ccc;
   border-radius: 8px;
   overflow: hidden;
