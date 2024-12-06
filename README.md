@@ -1,4 +1,4 @@
-# map-ai
+# GIS-AI PLABS.ID Innovation Week
 
 This template should help get you started developing with Vue 3 in Vite.
 
@@ -12,24 +12,44 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
+### Setup env file and fill the variable
+
 ```sh
-npm install
+cp .env.example .env
+```
+
+### Install pnpm
+
+```sh
+npm i -g pnpm
+```
+
+### Install node modules
+
+```sh
+pnpm install
 ```
 
 ### Compile and Hot-Reload for Development
 
 ```sh
-npm run dev
+pnpm run dev
 ```
 
 ### Compile and Minify for Production
 
 ```sh
-npm run build
+pnpm run build
 ```
 
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh
-npm run lint
+pnpm run lint
 ```
+
+<br />
+
+![PLABS.ID LOGO](https://www.plabs.id/plabs.svg 'https://www.plabs.id')
+
+&copy; 2024 [PLABS.ID](https://www.plabs.id). All Rights Reserved
