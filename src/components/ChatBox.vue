@@ -25,31 +25,56 @@
         placeholder="Type your message..."
       />
       <button @click="runAI" :disabled="isChatDisabled">Send</button>
+      <button @click="clearChat" class="clear-button">Clear Chat</button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive, nextTick, onMounted } from 'vue'
 import { marked } from 'marked'
 
-const messages = reactive([
-  { text: 'Please click the marker in maps to get the data', sender: 'bot' },
-])
+// Chat messages with initial load from localStorage
+const messages = reactive(JSON.parse(localStorage.getItem('chatMessages') || '[]'))
 const newMessage = ref('')
 const isBotTyping = ref(false)
 const messagesContainer = ref(null)
-const isChatDisabled = ref(true)
+const isChatDisabled = ref(false)
+
+// Save messages to localStorage whenever messages change
+function saveMessages() {
+  localStorage.setItem('chatMessages', JSON.stringify(messages))
+}
 
 function scrollToBottom() {
   if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    nextTick(() => {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    })
   }
 }
 
 function parseMarkdown(text) {
   return marked(text)
+}
+
+function clearChat() {
+  // Clear messages and localStorage
+  messages.splice(0, messages.length)
+  localStorage.removeItem('chatMessages')
+}
+
+function generateContextPrompt() {
+  // Get the last 5 messages to provide context
+  const contextMessages = messages.slice(-5)
+
+  // Format context as a string
+  const contextPrompt = contextMessages
+    .map((msg) => `${msg.sender === 'user' ? 'Human:' : 'AI:'} ${msg.text}`)
+    .join('\n\n')
+
+  return contextPrompt
 }
 
 function runAI(data) {
@@ -66,7 +91,7 @@ function runAI(data) {
     })
 
     const generationConfig = {
-      temperature: 1,
+      temperature: 0.7,
       topP: 0.95,
       topK: 40,
       maxOutputTokens: 8192,
@@ -77,14 +102,28 @@ function runAI(data) {
       isBotTyping.value = true
       let msg = newMessage.value
 
+      // Prepare the full prompt with context
+      const contextPrompt = generateContextPrompt()
+      const fullPrompt = `
+        Conversation Context:
+        ${contextPrompt}
+
+        Latest Message:
+        ${msg}
+
+        Please provide a relevant and contextual response.`
+
+      // Add user message
       messages.push({ text: newMessage.value.trim(), sender: 'user' })
+      saveMessages()
 
       setTimeout(async () => {
-        const chatSession = await model.generateContent(msg, generationConfig)
+        const chatSession = await model.generateContent(fullPrompt, generationConfig)
 
         const response = chatSession.response.text()
 
         messages.push({ text: response.trim(), sender: 'bot' })
+        saveMessages()
 
         await nextTick()
         scrollToBottom()
@@ -95,6 +134,7 @@ function runAI(data) {
       nextTick()
       scrollToBottom()
     } else if (data && data.length === 2) {
+      clearChat()
       isBotTyping.value = true
       const msg = `Please search this longitude ${data[0]} and latitude ${data[1]} country info and show me the result please and check the disease that happen on this area`
 
@@ -104,6 +144,7 @@ function runAI(data) {
         const response = chatSession.response.text()
 
         messages.push({ text: response.trim(), sender: 'bot' })
+        saveMessages()
 
         await nextTick()
         scrollToBottom()
@@ -112,12 +153,19 @@ function runAI(data) {
     }
   } catch (error) {
     console.error(error.message)
+    isBotTyping.value = false
   }
 }
+
+// Scroll to bottom on component mount
+onMounted(() => {
+  scrollToBottom()
+})
 
 // Expose methods for parent access
 defineExpose({
   runAI,
+  clearChat,
 })
 </script>
 
