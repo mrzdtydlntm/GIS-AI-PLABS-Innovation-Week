@@ -60,16 +60,13 @@ function parseMarkdown(text) {
 }
 
 function clearChat() {
-  // Clear messages and localStorage
   messages.splice(0, messages.length)
   localStorage.removeItem('chatMessages')
 }
 
 function generateContextPrompt() {
-  // Get the last 5 messages to provide context
   const contextMessages = messages.slice(-5)
 
-  // Format context as a string
   const contextPrompt = contextMessages
     .map((msg) => `${msg.sender === 'user' ? 'Human:' : 'AI:'} ${msg.text}`)
     .join('\n\n')
@@ -102,7 +99,6 @@ function runAI(data) {
       isBotTyping.value = true
       let msg = newMessage.value
 
-      // Prepare the full prompt with context
       const contextPrompt = generateContextPrompt()
       const fullPrompt = `
         Conversation Context:
@@ -113,7 +109,6 @@ function runAI(data) {
 
         Please provide a relevant and contextual response.`
 
-      // Add user message
       messages.push({ text: newMessage.value.trim(), sender: 'user' })
       saveMessages()
 
@@ -157,12 +152,10 @@ function runAI(data) {
   }
 }
 
-// Scroll to bottom on component mount
 onMounted(() => {
   scrollToBottom()
 })
 
-// Expose methods for parent access
 defineExpose({
   runAI,
   clearChat,
